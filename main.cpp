@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <homeapplication.h>
+#include "lipstick-qt5/homeapplication.h"
 #include <QString>
 
 int main(int argc, char *argv[])
