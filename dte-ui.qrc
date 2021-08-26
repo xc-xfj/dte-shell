@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/"/>
+    <qresource prefix="/images">
+        <file alias="background.jpg">images/clarity_03_by_pr09studio.jpg</file>
+    </qresource>
+</RCC>
