@@ -1,5 +1,21 @@
 <RCC>
-    <qresource prefix="/"/>
+    <qresource prefix="/">
+        <file>MainScreen.qml</file>
+        <file>LockScreen.qml</file>
+        <file>Statusbar.qml</file>
+        <file>AppLauncher.qml</file>
+        <file>compositor.qml</file>
+        <file>statusbar/BatteryIndicator.qml</file>
+        <file>statusbar/WifiIndicator.qml</file>
+        <file>statusbar/BluetoothIndicator.qml</file>
+        <file>statusbar/LocationIndicator.qml</file>
+        <file>statusbar/DataStatusItem.qml</file>
+        <file>lockscreen/DeviceLockUI.qml</file>
+        <file>lockscreen/MediaControls.qml</file>
+        <file>lockscreen/LockscreenDate.qml</file>
+        <file>launcher/SearchView.qml</file>
+        <file>pulldownpanel/PulldownPanelView.qml</file>
+    </qresource>
     <qresource prefix="/images">
         <file alias="background.jpg">images/clarity_03_by_pr09studio.jpg</file>
     </qresource>

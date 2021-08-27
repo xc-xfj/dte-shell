@@ -21,7 +21,7 @@
 
 #include "fileutils.h"
 
-#include "lipstick-qt5/homeapplication.h"
+#include <lipstick-qt5/homeapplication.h>
 
 #include <QString>
 #include <QQmlEngine>
