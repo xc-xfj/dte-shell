@@ -1,4 +1,4 @@
-# dte-ui
+# dte-shell
 
 this is  dte project
 
