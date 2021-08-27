@@ -19,11 +19,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fileutils.h"
+
 #include "lipstick-qt5/homeapplication.h"
+
 #include <QString>
+#include <QQmlEngine>
+#include <QQmlContext>
+#include <QScreen>
 
 int main(int argc, char *argv[])
 {
     HomeApplication app(argc, argv, QString());
+
+    app.setCompositorPath("/usr/share/lipstick-dte-ui/qml/compositor.qml");
+
+    FileUtils *fileUtils = new FileUtils();
+
+    // Handle lock screen orientation
+    Qt::ScreenOrientation nativeOrientation = app.primaryScreen()->nativeOrientation();
+    QByteArray v = qgetenv("GLACIER_NATIVEORIENTATION");
+    if (!v.isEmpty()) {
+        switch (v.toInt()) {
+        case 1:
+            nativeOrientation = Qt::PortraitOrientation;
+            break;
+        case 2:
+            nativeOrientation = Qt::LandscapeOrientation;
+            break;
+        case 4:
+            nativeOrientation = Qt::InvertedPortraitOrientation;
+            break;
+        case 8:
+            nativeOrientation = Qt::InvertedLandscapeOrientation;
+            break;
+        default:
+            nativeOrientation = app.primaryScreen()->nativeOrientation();
+        }
+    }
+    if (nativeOrientation == Qt::PrimaryOrientation)
+        nativeOrientation = app.primaryScreen()->primaryOrientation();
+    app.engine()->rootContext()->setContextProperty("nativeOrientation", nativeOrientation);
+    app.engine()->rootContext()->setContextProperty("fileUtils", fileUtils);
+    app.engine()->addImportPath("/usr/lib/qt/qml");
+
     return app.exec();
 }

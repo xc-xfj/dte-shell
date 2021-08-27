@@ -8,6 +8,7 @@ INSTALLS = target
 QT += core gui quick
 
 SOURCES += \
+    fileutils.cpp \
     main.cpp
 
 RESOURCES += \
@@ -15,3 +16,6 @@ RESOURCES += \
 
 CONFIG += link_pkgconfig
 PKGCONFIG += lipstick-qt5
+
+HEADERS += \
+    fileutils.h
