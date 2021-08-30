@@ -22,6 +22,7 @@
 #include "fileutils.h"
 
 #include <lipstick-qt5/homeapplication.h>
+#include <lipstick-qt5/homewindow.h>
 
 #include <QString>
 #include <QQmlEngine>
@@ -32,7 +33,8 @@ int main(int argc, char *argv[])
 {
     HomeApplication app(argc, argv, QString());
 
-    app.setCompositorPath("/usr/share/lipstick-dte-ui/qml/compositor.qml");
+    // use lipstick-jolla-home-qt5 project path
+    app.setCompositorPath("/usr/share/lipstick-jolla-home-qt5/compositor.qml");
 
     FileUtils *fileUtils = new FileUtils();
 
@@ -63,5 +65,8 @@ int main(int argc, char *argv[])
     app.engine()->rootContext()->setContextProperty("fileUtils", fileUtils);
     app.engine()->addImportPath("/usr/lib/qt/qml");
 
+    app.setQmlPath("/usr/share/lipstick-jolla-home-qt5/main.qml");
+
+    app.mainWindowInstance()->showFullScreen();
     return app.exec();
 }
