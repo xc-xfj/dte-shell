@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (c) 2013 - 2019 Jolla Ltd.
-** Copyright (c) 2019 - 2020 Open Mobile Platform LLC.
+** Copyright (c) 2019 Open Mobile Platform LLC.
 **
 ** License: Proprietary
 **
@@ -15,8 +15,7 @@ import org.nemomobile.lipstick 0.1
 import com.jolla.lipstick 0.1
 import org.nemomobile.configuration 1.0
 import org.nemomobile.devicelock 1.0
-import org.nemomobile.systemsettings 1.0
-import "../backgrounds"
+import "../compositor"
 
 SilicaFlickable {
     id: topMenu
@@ -100,8 +99,6 @@ SilicaFlickable {
             Lipstick.compositor.topMenuLayer.housekeeping = false
             ambienceSelector.resetView()
             if (contextMenu) {
-                // Disable context menu's removeOpacityEffect
-                contextMenu.parent = null
                 contextMenu.destroy()
             }
         }
@@ -114,7 +111,7 @@ SilicaFlickable {
 
     VerticalScrollDecorator {}
 
-    MenuBackground {
+    BlurredBackground {
         id: background
         width: topMenu.width
         height: topMenu.expanded
@@ -296,10 +293,7 @@ SilicaFlickable {
 
                             transitions: Transition {
                                 to: "expanded"
-                                NumberAnimation {
-                                    properties: "y"
-                                    duration: Lipstick.compositor.powerKeyPressed ? scrollAnimation.duration : 200
-                                }
+                                NumberAnimation { properties: "y"; duration: 200 }
                             }
                         }
                     }
@@ -307,77 +301,45 @@ SilicaFlickable {
                     Item {
                         id: settingsContainer
 
-                        clip: settingsButtonItem.y < 0
+                        clip: settingsButton.y < 0
                         width: parent.width
                         height: settingsButton.height + (!!contextMenu ? contextMenu.height : 0)
 
-                        function openMenu(menu, item) {
-                            if (!topMenu.contextMenu) {
-                                topMenu.contextMenu = menu.createObject(topMenu)
-                            }
-                            topMenu.contextMenu.open(item)
-                        }
+                        IconButton {
+                            id: settingsButton
 
-                        UserInfo {
-                            id: user
-                            watched: true
-                        }
-
-                        Loader {
-                            id: userSelectorLoader
-
-                            active: !user.alone
-                            anchors.left: parent.left
-                            sourceComponent: Component {
-                                UserSelector {
-                                    contentHeight: settingsButton.height
-                                    currentUser: user
-                                    width: settingsButton.x
+                            function openMenu() {
+                                if (!topMenu.contextMenu) {
+                                    topMenu.contextMenu = contextMenuComponent.createObject(topMenu)
                                 }
+                                topMenu.contextMenu.open(settingsContainer)
                             }
-                            y: Math.min(0, -height - shortcutsLoader.y - favoriteSettingsLoader.height
-                                        + topMenu.offset)
-                        }
 
-                        Item {
-                            id: settingsButtonItem
-                            property bool menuOpen
+                            icon.source: "image://theme/icon-s-setting"
 
-                            anchors.top: userSelectorLoader.active ? userSelectorLoader.top : undefined
-                            height: menuOpen && topMenu.contextMenu
-                                ? settingsButton.height + topMenu.contextMenu.height
-                                : settingsButton.height
-                            width: parent.width
                             y: Math.min(0, -height - shortcutsLoader.y - favoriteSettingsLoader.height
                                         + topMenu.offset)
 
-                            IconButton {
-                                id: settingsButton
+                            width: height + Theme.paddingMedium
+                            height: Theme.itemSizeMedium
+                            anchors.right: parent.right
 
-                                icon.source: "image://theme/icon-s-setting"
-                                highlighted: down || settingsButtonItem.menuOpen
-
-                                anchors.right: parent.right
-                                width: height + Theme.paddingMedium
-                                height: Theme.itemSizeMedium
-
-                                Rectangle {
-                                    z: -1
-                                    anchors.fill: parent
-                                    color:  Theme.rgba(Theme.highlightBackgroundColor, Theme.highlightBackgroundOpacity)
-                                    visible: settingsButton.down
-                                }
-
-                                onClicked: {
-                                    if (Lipstick.compositor.topMenuLayer.housekeeping) {
-                                        Lipstick.compositor.topMenuLayer.housekeeping = false
-                                    } else {
-                                        settingsContainer.openMenu(contextMenuComponent, settingsButtonItem)
-                                    }
-                                }
-
-                                onPressAndHold: settingsContainer.openMenu(contextMenuComponent, settingsButtonItem)
+                            Rectangle {
+                                z: -1
+                                anchors.fill: parent
+                                color:  Theme.rgba(Theme.highlightBackgroundColor, Theme.highlightBackgroundOpacity)
+                                visible: settingsButton.highlighted
                             }
+
+                            onClicked: {
+                                if (Lipstick.compositor.topMenuLayer.housekeeping) {
+                                    Lipstick.compositor.topMenuLayer.housekeeping = false
+                                } else {
+                                    openMenu()
+                                }
+                            }
+
+                            onPressAndHold: openMenu()
 
                             Component {
                                 id: contextMenuComponent
@@ -389,8 +351,6 @@ SilicaFlickable {
                                     container: topMenu.parent
 
                                     onClosed: menu.destroy()
-                                    Component.onCompleted: settingsButtonItem.menuOpen = true
-                                    Component.onDestruction: settingsButtonItem.menuOpen = false
 
                                     MenuItem {
                                         //% "Organize"
@@ -417,16 +377,12 @@ SilicaFlickable {
                         states: State {
                             name: "expanded"
                             when: topMenu.expanded
-                            PropertyChanges { target: settingsButtonItem; y: 0 }
-                            PropertyChanges { target: userSelectorLoader; y: 0 }
+                            PropertyChanges { target: settingsButton; y: 0 }
                         }
 
                         transitions: Transition {
                             to: "expanded"
-                            NumberAnimation {
-                                properties: "y"
-                                duration: Lipstick.compositor.powerKeyPressed ? scrollAnimation.duration : 200
-                            }
+                            NumberAnimation { properties: "y"; duration: 200 }
                         }
                     }
                 }
@@ -498,9 +454,8 @@ SilicaFlickable {
         id: housekeepingNotif
 
         //% "Unlock device to organize Top Menu"
-        body: qsTrId("lipstick_jolla_home-la-unlock_to_organize_top_menu")
-        appIcon: "icon-system-resources"
-        isTransient: true
+        previewBody: qsTrId("lipstick_jolla_home-la-unlock_to_organize_top_menu")
+        icon: "icon-system-resources"
 
         // Show notification above the device lock layer
         urgency: SystemNotifications.Notification.Critical
@@ -510,17 +465,16 @@ SilicaFlickable {
         id: settingChangeNotif
 
         function reset(control) {
-            body = control.checked
+            previewBody = control.checked
                       //: Indicates a feature is now turned off. %1 = name of feature
                       //% "%1 disabled"
                     ? qsTrId("lipstick_jolla_home-la-toggle_disabled").arg(control.name)
                       //: Indicates a feature is now turned on. %1 = name of feature
                       //% "%1 enabled"
                     : qsTrId("lipstick_jolla_home-la-toggle_enabled").arg(control.name)
-            appIcon = control.systemIcon
+            icon = control.systemIcon
         }
 
         urgency: SystemNotifications.Notification.Critical
-        isTransient: true
     }
 }

@@ -1,9 +1,9 @@
-/*
- * Copyright (c) 2015 Jolla Ltd.
- * Copyright (c) 2020 Open Mobile Platform LLC.
- *
- * License: Proprietary
- */
+/****************************************************************************
+**
+** Copyright (C) 2015 Jolla Ltd.
+** Contact: Martin Jones <martin.jones@jollamobile.com>
+**
+****************************************************************************/
 
 import QtQuick 2.1
 import org.nemomobile.lipstick 0.1
@@ -64,19 +64,6 @@ Item {
         slideMoveAnim.stop()
         fadeMoveAnim.stop()
         moveTimer.stop()
-    }
-
-    function startReordering(now) {
-        manager.movingItem = delegateContentItem
-        _previousMovePosition = undefined
-        _newIndex = -1
-        _newFolderIndex = -1
-        if (now) {
-            manager.startReorderTimer.stop()
-            manager.startReorderTimer.triggered()
-        } else {
-            manager.startReorderTimer.restart()
-        }
     }
 
     visible: false // I'm a placeholder. launcherItem does all the painting
@@ -264,7 +251,11 @@ Item {
                 manager.view.currentIndex = index
             }
             if (editMode) {
-                wrapper.startReordering()
+                manager.movingItem = delegateContentItem
+                _previousMovePosition = undefined
+                _newIndex = -1
+                _newFolderIndex = -1
+                manager.startReorderTimer.restart()
             }
             _pressX = mouseX
             _pressY = mouseY

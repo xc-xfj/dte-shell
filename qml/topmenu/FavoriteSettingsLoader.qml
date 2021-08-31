@@ -1,9 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2015 - 2020 Jolla Ltd.
-** Copyright (c) 2020 Open Mobile Platform LLC.
-**
-** License: Proprietary
+** Copyright (C) 2015 Jolla Ltd.
+** Contact: Aaron McCarthy <aaron.mccarthy@jollamobile.com>
 **
 ****************************************************************************/
 
@@ -33,14 +31,6 @@ Loader {
 
     function showTopMenuSettings() {
         settingsDbus.showPage("system_settings/look_and_feel/topmenu")
-    }
-
-    function showUsersSettings() {
-        settingsDbus.showPage("system_settings/system/users")
-    }
-
-    function showAddNewUser() {
-        settingsDbus.call("addNewUser")
     }
 
     DBusInterface {
@@ -257,7 +247,6 @@ Loader {
                             onTriggered: {
                                 if (model.object.type == "action") {
                                     gridFavModel.triggerAction(model.index)
-                                    Lipstick.compositor.topMenuLayer.hide()
                                 } else {
                                     pageOrActionDelegate.item.goToSettings()
                                 }

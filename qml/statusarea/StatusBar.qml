@@ -5,7 +5,7 @@ import Sailfish.Lipstick 1.0
 import org.nemomobile.lipstick 0.1
 import com.jolla.lipstick 0.1
 
-SilicaControl {
+Item {
     id: statusBar
 
     property real baseY: Theme.paddingMedium + Theme.paddingSmall
@@ -16,9 +16,6 @@ SilicaControl {
     property alias iconSuffix: statusArea.iconSuffix
     property alias color: statusArea.color
     property alias backgroundVisible: background.visible
-    property alias shadowVisible: statusArea.shadowVisible
-
-    palette.primaryColor: statusBar.color
 
     width: parent.width
     height: baseY + statusArea.height
@@ -32,6 +29,7 @@ SilicaControl {
         }
         opacity: 1.0 - Math.abs(statusBar.y/Theme.paddingMedium)
     }
+
 
     MouseArea {
         property Item window: Lipstick.compositor.topmostWindow

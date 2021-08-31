@@ -66,8 +66,8 @@ BackgroundItem {
     DBusInterface {
         id: weatherService
 
-        service: "org.sailfishos.weather"
-        path: "/org/sailfishos/weather"
-        iface: "org.sailfishos.weather"
+        service: "com.jolla.weather"
+        path: "/com/jolla/weather"
+        iface: "com.jolla.weather"
     }
 }

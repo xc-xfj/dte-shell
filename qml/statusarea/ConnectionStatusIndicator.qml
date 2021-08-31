@@ -26,44 +26,30 @@ Item {
         id: tethering
     }
 
-    Timer {
-        id: signalStrength
-
-        property int iconLevel
-        readonly property string iconId: ConnectionManager.connectingWifi ?
-            ("icon-status-wlan-connecting-" + iconLevel) : (actualLevel >= 0) ?
-            ("icon-status-wlan-" + actualLevel) : ""
-        readonly property int actualLevel: {
-            var wifi = ConnectionManager.connectedWifi
-            if (wifi) {
-                var strength = wifi.strength
-                return (strength >= 59) ? 4 :
-                       (strength >= 55) ? 3 :
-                       (strength >= 50) ? 2 :
-                       (strength >= 40) ? 1 : 0
-            }
-            return -1
-        }
-
-        interval: 250
-        running: connectionStatusIndicator.parent.visible && ConnectionManager.connectingWifi
-        onRunningChanged: if (running) iconLevel = 0
-        onTriggered: iconLevel = (iconLevel + 1) % 5
-        repeat: true
-    }
-
     property string _wlanIconId: {
         // WLAN off
         if (!wlanStatus.enabled)
-            return ""
+            return "";
 
         // WLAN tethering
         if (tethering.enabled)
-            return ""
+            return "";
 
-        // WLAN connected or connecting
-        if (ConnectionManager.connectedWifi || ConnectionManager.connectingWifi)
-            return signalStrength.iconId
+        // WLAN connected
+        var wifi = ConnectionManager.connectedWifi
+        if (wifi) {
+            if (wifi.strength >= 59) {
+                return "icon-status-wlan-4"
+            } else if (wifi.strength >= 55) {
+                return "icon-status-wlan-3"
+            } else if (wifi.strength >= 50) {
+                return "icon-status-wlan-2"
+            } else if (wifi.strength >= 40) {
+                return "icon-status-wlan-1"
+            } else {
+                return "icon-status-wlan-0"
+            }
+        }
 
         // WLAN not connected, network available
         if (ConnectionManager.servicesList("wifi").length > 0)
@@ -98,7 +84,7 @@ Item {
         return ""
     }
 
-    Icon {
+    Image {
         id: primaryIcon
 
         opacity: blinkIconTimer.primaryIconVisible ? 1 : 0
@@ -117,7 +103,7 @@ Item {
         anchors.bottom: parent.bottom
     }
 
-    Icon {
+    Image {
         id: secondaryIcon
         source: {
             if (wlanStatus.connected && _cellularIconId !== "")
@@ -132,7 +118,7 @@ Item {
         anchors.bottom: parent.bottom
     }
 
-    Icon {
+    Image {
         id: tetheringOverlay
         source: "image://theme/icon-status-data-share" + mobileDataIconSuffix
         visible: tethering.enabled

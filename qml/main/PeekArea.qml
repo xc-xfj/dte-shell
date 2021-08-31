@@ -1,10 +1,3 @@
-/*
- * Copyright (c) 2015 - 2020 Jolla Ltd.
- * Copyright (c) 2020 Open Mobile Platform LLC.
- *
- * License: Proprietary
- */
-
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import Sailfish.Lipstick 1.0
@@ -16,10 +9,9 @@ Item {
     property alias transitionItem: transitionItem
     property alias snapshotSource: snapshot
     property alias underlayItem: underlay
-    property alias foregroundItem: foreground
     property alias contentItem: content
     property alias overlayItem: overlay
-    property alias contentOpacity: foreground.opacity
+    property alias contentOpacity: snapshot.opacity
 
     signal aboutToClose
     signal closed
@@ -102,29 +94,17 @@ Item {
 
         Item {
             id: underlay
-            width: snapshot.width
-            height: snapshot.height
+            anchors.fill: snapshot
+        }
+
+        StackItem {
+            id: content
+            anchors.fill: snapshot
         }
 
         Item {
-            id: foreground
-
-            StackItem {
-                id: content
-
-                property alias underlayItem: underlay
-                property alias overlayItem: overlay
-
-                width: snapshot.width
-                height: snapshot.height
-            }
-
-            Item {
-                id: overlay
-
-                width: snapshot.width
-                height: snapshot.height
-            }
+            id: overlay
+            anchors.fill: snapshot
         }
     }
 

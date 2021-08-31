@@ -1,9 +1,8 @@
 /****************************************************************************
- **
- ** Copyright (C) 2013-2018 Jolla Ltd.
- ** Copyright (C) 2020 Open Mobile Platform LLC.
- **
- ****************************************************************************/
+**
+** Copyright (C) 2013-2014 Jolla Ltd.
+**
+****************************************************************************/
 
 import QtQuick 2.0
 import Sailfish.Silica 1.0
@@ -20,18 +19,29 @@ import "calendar"
 SilicaFlickable {
     id: root
 
+    property bool collapsed: true
     property real statusBarHeight
     readonly property bool hasNotifications: notificationList.count > 0 || systemUpdateList.count > 0 || feedsList.hasVisibleFeeds
-    property bool stickyHeader: !Lipstick.compositor.lockScreenLayer.lockScreenEventsEnabled
-                                && contentY > notificationsArea.y + notificationHeaderContainer.y + notificationHeader.height
+    property int animationDuration
+    property alias headerItem: headerColumn
+    property real defaultNotificationAreaY: headerColumn.y + headerColumn.height + Theme.paddingMedium
+    property bool menuOpen: pullDownMenu != null && pullDownMenu.active
 
-    property bool _housekeepingAllowed: !Lipstick.compositor.lockScreenLayer.lockScreenEventsEnabled &&
-                                        ((notificationListModel.populated && notificationList.hasRemovableNotifications)
-                                         || feedsList.hasRemovableNotifications)
+    property bool _housekeepingAllowed: (notificationListModel.populated && notificationList.hasRemovableNotifications)
+                        || feedsList.hasRemovableNotifications
 
-    contentHeight: Math.ceil(Math.max(footerSpacer.y + footerSpacer.height, noNotificationsLabel.y + noNotificationsLabel.height)) + Theme.paddingLarge
-    topMargin: -notificationHeader.height
-    clip: stickyHeader
+    contentHeight: Math.ceil(Math.max(footerSpacer.y + footerSpacer.height, noNotificationsLabel.y + noNotificationsLabel.height))
+
+    function collapse() {
+        positioningAnimation.complete()
+        root.collapsed = true
+    }
+
+    function expand(animate) {
+        positioningBehavior.enabled = animate
+        root.collapsed = false
+        positioningBehavior.enabled = false
+    }
 
     function _scrollToExpandingItem(item, yOffset) {
         expandingItemConn.targetYOffset = yOffset
@@ -40,7 +50,6 @@ SilicaFlickable {
 
     on_HousekeepingAllowedChanged: {
         Lipstick.compositor.eventsLayer.housekeepingAllowed = _housekeepingAllowed
-        Lipstick.compositor.eventsLayer.setHousekeeping(false)
     }
 
     Connections {
@@ -63,7 +72,10 @@ SilicaFlickable {
         enabled: false
 
         SequentialAnimation {
-            NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+            NumberAnimation {
+                duration: notificationList.animationDuration * 2
+                easing.type: Easing.InOutQuad
+            }
             ScriptAction {
                 script: {
                     scrollBehavior.enabled = false
@@ -87,11 +99,10 @@ SilicaFlickable {
         groupProperty: "disambiguatedAppName"
         sourceModel: JollaNotificationListModel {
             filters: [ {
-                    "property": "category",
-                    "comparator": "!match",
-                    "value": "^x-nemo.system-update"
-                }
-            ]
+                "property": "category",
+                "comparator": "!match",
+                "value": "^x-nemo.system-update"
+            } ]
         }
     }
 
@@ -101,21 +112,33 @@ SilicaFlickable {
         groupProperty: "disambiguatedAppName"
         sourceModel: JollaNotificationListModel {
             filters: [ {
-                    "property": "category",
-                    "comparator": "match",
-                    "value": "^x-nemo.system-update"
-                }
-            ]
+                "property": "category",
+                "comparator": "match",
+                "value": "^x-nemo.system-update"
+            } ]
         }
     }
 
     Column {
         id: headerColumn
 
-        // Leave space for the status area
-        y: statusBarHeight - Theme.paddingSmall
-        spacing: Theme.paddingSmall
         width: parent.width
+
+        // Leave space for the status area
+        y: statusBarHeight + Theme.paddingMedium
+
+        spacing: Theme.paddingSmall
+
+        opacity: collapsed ? 0.0 : 1.0
+        Behavior on opacity {
+            enabled: hasNotifications
+            FadeAnimation { duration: animationDuration }
+        }
+
+        WeatherLoader {
+            id: weatherWidget
+            active: false
+        }
 
         Label {
             id: dateLabel
@@ -126,17 +149,15 @@ SilicaFlickable {
                 return dateString.charAt(0).toUpperCase() + dateString.substr(1)
             }
             color: Theme.highlightColor
-            font.pixelSize: Theme.fontSizeSmall
+            font {
+                pixelSize: Theme.fontSizeExtraSmall
+                family: Theme.fontFamilyHeading
+            }
             WallClock {
                 id: wallClock
                 enabled: Desktop.eventsViewVisible
                 updateFrequency: WallClock.Day
             }
-        }
-
-        WeatherLoader {
-            id: weatherWidget
-            active: false
         }
 
         // For future use:
@@ -191,8 +212,7 @@ SilicaFlickable {
         id: noNotificationsLabel
 
         x: notificationsArea.x + Theme.paddingMedium
-        y: Math.max(notificationsArea.y + notificationHeaderContainer.y + notificationHeader.height + Theme.itemSizeSmall,
-                    root.height/2 - implicitHeight/2)
+        y: Math.max(headerColumn.y + headerColumn.height + Theme.paddingLarge, root.height/2 - implicitHeight/2)
         width: notificationsArea.width - 2*Theme.paddingMedium
         opacity: (!root.hasNotifications && notificationList.contentHeight < 1 && !feedsList.showingRemovableContent)
                  ? 1.0 : 0.0
@@ -208,47 +228,54 @@ SilicaFlickable {
         id: notificationsArea
 
         width: parent.width
-        height: Math.max(systemUpdateList.contentHeight + notificationList.contentHeight + notificationHeader.height + feedsList.height, root.height - y)
+        height: Math.max(systemUpdateList.contentHeight + notificationList.contentHeight + feedsList.height, root.height - y)
 
-        anchors {
-            top: headerColumn.bottom
-            topMargin: Theme.paddingMedium
+        y: {
+            if (!root.collapsed || !root.hasNotifications) {
+                return defaultNotificationAreaY
+            }
+
+            // Header column fades in when collapsed changes to false. No need to take
+            // that into account over here.
+
+            // Calculate the amount of space needed to place the collapsed list body in the
+            // vertical center of the view, to align with the lock screen, which only shows
+            // high-priority notifications and not system-update notifications
+            var collapsedHeight = Lipstick.compositor.notificationOverviewLayer.notificationColumn.height
+            return (root.height - collapsedHeight)/2 - systemUpdateList.contentHeight
+        }
+
+        Behavior on y {
+            id: positioningBehavior
+            NumberAnimation {
+                id: positioningAnimation
+                duration: root.animationDuration
+                easing.type: Easing.InOutQuad
+            }
         }
 
         InverseMouseArea {
             anchors.fill: notificationsArea
-            enabled: Lipstick.compositor.eventsLayer.housekeeping && !notificationHeader.down
+            enabled: Lipstick.compositor.eventsLayer.housekeeping && !pullDownMenu.active
             onClickedOutside: Lipstick.compositor.eventsLayer.setHousekeeping(false)
         }
 
         MouseArea {
             objectName: "EventsViewList_housekeeping"
             anchors.fill: parent
-            enabled: Lipstick.compositor.eventsLayer.housekeepingAllowed
-            onPressAndHold: if (!Lipstick.compositor.eventsLayer.housekeeping) Lipstick.compositor.eventsLayer.setHousekeeping(true)
+            onPressAndHold: Lipstick.compositor.eventsLayer.toggleHousekeeping()
             onClicked: Lipstick.compositor.eventsLayer.setHousekeeping(false)
-        }
-
-        Item {
-            id: notificationHeaderContainer
-
-            height: notificationHeader.height
-            width: parent.width
-
-            Notifications.NotificationHeader {
-                id: notificationHeader
-                stickyHeader: root.stickyHeader
-                parent: stickyHeader ? root.parent : notificationHeaderContainer
-            }
         }
 
         Notifications.NotificationListView {
             id: systemUpdateList
 
-            y: notificationHeaderContainer.height
             height: Screen.height * 1000 // Ensures the view is fully populated without needing to bind height: contentHeight
-            model: systemUpdateListModel.populated ? systemUpdateListModel : null
-            viewVisible: Desktop.eventsViewVisible
+            sourceModel: systemUpdateListModel.populated ? systemUpdateListModel : null
+            timestampUpdatesEnabled: Desktop.eventsViewVisible
+            animationDuration: root.animationDuration
+            collapsed: root.collapsed
+            animateExpansion: positioningBehavior.enabled
         }
 
         Notifications.NotificationListView {
@@ -257,8 +284,6 @@ SilicaFlickable {
             property var displayedIds: ({})
             onDisplayed: displayedIds[id] = true
             onExpanded: root._scrollToExpandingItem(item, 0)
-
-            y: systemUpdateList.y + systemUpdateList.contentHeight
 
             Connections {
                 target: Lipstick.compositor.eventsLayer
@@ -276,13 +301,19 @@ SilicaFlickable {
 
             // Do not overwrite/break width binding
             height: Screen.height * 1000 // Ensures the view is fully populated without needing to bind height: contentHeight
-            model: notificationListModel.populated ? notificationListModel : null
-            viewVisible: Desktop.eventsViewVisible
+            y: systemUpdateList.contentHeight
+            sourceModel: notificationListModel.populated ? notificationListModel : null
+            timestampUpdatesEnabled: Desktop.eventsViewVisible
+            animationDuration: root.animationDuration
+            collapsed: root.collapsed
+            animateExpansion: positioningBehavior.enabled
         }
 
         EventFeedList {
             id: feedsList
-            y: notificationList.y + notificationList.contentHeight
+            y: systemUpdateList.contentHeight + notificationList.contentHeight
+            collapsed: root.collapsed
+            animationDuration: root.animationDuration
             onExpanded: root._scrollToExpandingItem(item, itemYOffset)
             Binding on width {
                 when: Desktop.eventsViewVisible || Lipstick.compositor.lockScreenLayer.exposed
@@ -298,12 +329,64 @@ SilicaFlickable {
 
         // Only include footer spacing if the content above exceeds the available height
         height: y > root.height ? Theme.itemSizeSmall : 0
-        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.InOutQuad } }
+        Behavior on height {
+            NumberAnimation {
+                duration: root.animationDuration
+                easing.type: Easing.InOutQuad
+            }
+        }
     }
 
-    VerticalScrollDecorator {
-        id: scrollDecorator
-        _forcedParent: root.parent
-        _topMenuSpacing: root.topMargin
+    VerticalScrollDecorator { id: scrollDecorator }
+
+    PullDownMenu {
+        id: pullDownMenu
+        property bool clearNotificationsWhenClosed
+
+        function _removeAllNotifications() {
+            // make notification items vanish gradually from the bottom to the top of the screen
+            var removableItems = []
+            notificationList.findMatchingRemovableItems(_itemInView, removableItems)
+            feedsList.findMatchingRemovableItems(_itemInView, removableItems)
+
+            var pauseBeforeRemoval = 0
+            for (var i=removableItems.length-1; i>=0; i--) {
+                if (removableItems[i].pauseBeforeRemoval !== undefined) {
+                    pauseBeforeRemoval += 150
+                    removableItems[i].pauseBeforeRemoval = pauseBeforeRemoval
+                }
+            }
+
+            notificationList.removeAll()
+            feedsList.removeAllNotifications()
+        }
+
+        function _itemInView(item) {
+            var yPos = item.mapToItem(root, 0, 0).y
+            return yPos > root.contentY && yPos < root.contentY + root.height
+        }
+
+        visible: Lipstick.compositor.eventsLayer.housekeeping
+
+        MenuItem {
+            //% "Clear notifications"
+            text: qsTrId("lipstick-jolla-home-me-clear_notifications")
+            onClicked: pullDownMenu.clearNotificationsWhenClosed = true
+        }
+
+        onActiveChanged: {
+            if (!active && clearNotificationsWhenClosed) {
+                pullDownMenu._removeAllNotifications()
+                clearNotificationsWhenClosed = false
+                Lipstick.compositor.eventsLayer.setHousekeeping(false)
+            }
+        }
+    }
+
+    // Block mouse / touch events when positioning animation is enabled.
+    MouseArea {
+        objectName: "EventsViewList_blocker"
+        anchors.fill: parent
+        enabled: positioningAnimation.running
     }
 }

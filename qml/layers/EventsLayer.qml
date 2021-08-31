@@ -9,22 +9,17 @@ PannableLayer {
     property alias overlayItem: overlay
 
     property real contentY
-
     property bool menuOpen
-
-    // Always change housekeeping through function that checks allowed status
-    readonly property bool housekeeping: _housekeeping
-    property bool _housekeeping
+    property bool housekeeping
     property bool housekeepingAllowed
     readonly property bool topMenuHousekeeping: Lipstick.compositor.topMenuLayer.housekeeping
 
-    signal deactivated()
 
     function setHousekeeping(enable) {
         if (enable && !housekeepingAllowed) {
             return
         }
-        _housekeeping = enable
+        housekeeping = enable
     }
 
     function toggleHousekeeping() {
@@ -33,7 +28,7 @@ PannableLayer {
 
     function _autoDisableHousekeeping() {
         if (!visible && (!Lipstick.compositor.homeLayer || !Lipstick.compositor.homeLayer.moving)) {
-            _housekeeping = false
+            housekeeping = false
             if (Lipstick.compositor && Lipstick.compositor.topMenuLayer)
                 Lipstick.compositor.topMenuLayer.housekeeping = false
         }
@@ -41,7 +36,7 @@ PannableLayer {
 
     // Do not allow both events housekeeping and shortcuts housekeeping to be active simultaneously
     onHousekeepingChanged: if (housekeeping) Lipstick.compositor.topMenuLayer.housekeeping = false
-    onTopMenuHousekeepingChanged: if (topMenuHousekeeping) _housekeeping = false
+    onTopMenuHousekeepingChanged: if (topMenuHousekeeping) housekeeping = false
 
     statusOffset: Math.min(contentY, statusBar.height + Theme.paddingMedium)
     statusOpacity: menuOpen ? Theme.opacityLow : 1

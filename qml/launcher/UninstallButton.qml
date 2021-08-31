@@ -13,21 +13,13 @@ Image {
     readonly property bool down: uninstallArea.pressed && uninstallArea.containsMouse
     signal clicked()
 
-    source: "image://theme/icon-s-clear-opaque-background?" + (Theme.colorScheme === Theme.LightOnDark
-                                                               ? down ? Theme.highlightColor
-                                                                      : Theme.primaryColor
-                                                               : down ? Theme.highlightDimmerColor
-                                                                      : Theme.highlightBackgroundColor)
+    source: "image://theme/icon-s-clear-opaque-background?" + (down ? Theme.highlightColor : Theme.primaryColor)
 
     Behavior on opacity { FadeAnimation {} }
 
     Image {
         anchors.centerIn: parent
-        source: "image://theme/icon-s-clear-opaque-cross?" + (Theme.colorScheme === Theme.LightOnDark
-                                                              ? root.down ? Theme.highlightDimmerColor
-                                                                          : Theme.highlightBackgroundColor
-                                                              : root.down ? Theme.darkSecondaryColor
-                                                                          : Theme.lightPrimaryColor)
+        source: "image://theme/icon-s-clear-opaque-cross?" + Theme.highlightBackgroundColor
     }
 
     MouseArea {

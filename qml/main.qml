@@ -1,7 +1,7 @@
 ﻿/****************************************************************************
 **
-** Copyright (c) 2013 - 2020 Jolla Ltd.
-** Copyright (c) 2020 Open Mobile Platform LLC.
+** Copyright (C) 2013 Jolla Ltd.
+** Contact: Petri M. Gerdt <petri.gerdt@jollamobile.com>
 **
 ****************************************************************************/
 
@@ -50,7 +50,7 @@ ApplicationWindow {
 
     Binding {
         when: window._dimScreen
-        target: Lipstick.compositor.wallpaper.dimmer
+        target: Lipstick.compositor.homeLayer.dimmer
         property: "dimmed"
         value: true
     }
@@ -139,14 +139,12 @@ ApplicationWindow {
             iface: "com.jolla.lipstick"
 
             signal pairWithDevice(string address)
-            signal cancelPairWithDevice(string address)
             signal replyToAgentRequest(int requestId, int error, string passkey)
 
             signal replyToObexAgentRequest(string transferPath, bool acceptFile)
             signal cancelTransfer(string transferPath)
 
             onPairWithDevice: bluetoothSystemAgent.pairWithDevice(address)
-            onCancelPairWithDevice: bluetoothSystemAgent.cancelPairWithDevice(address)
             onReplyToAgentRequest: bluetoothSystemAgent.replyToAgentRequest(requestId, error, passkey)
 
             onReplyToObexAgentRequest: bluetoothObexSystemAgent.replyToObexAgentRequest(transferPath, acceptFile)

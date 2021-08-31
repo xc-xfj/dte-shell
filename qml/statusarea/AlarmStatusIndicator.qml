@@ -9,9 +9,8 @@
 
 import QtQuick 2.6
 import com.jolla.lipstick 0.1
-import Sailfish.Silica 1.0
 
-Icon {
+Image {
     source: "image://theme/icon-status-alarm" + iconSuffix
     visible: Desktop.timedStatus.alarmPresent
     height: visible ? implicitHeight : 0

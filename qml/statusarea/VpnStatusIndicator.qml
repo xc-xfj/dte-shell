@@ -23,7 +23,7 @@ Item {
         id: vpnStatus
     }
 
-    Icon {
+    Image {
         id: icon
 
         source: {

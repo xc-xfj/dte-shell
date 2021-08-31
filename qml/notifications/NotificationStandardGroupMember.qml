@@ -1,15 +1,14 @@
 /****************************************************************************
  **
- ** Copyright (C) 2013 - 2019 Jolla Ltd.
- ** Copyright (C) 2020 Open Mobile Platform LLC.
+ ** Copyright (C) 2013-2014 Jolla Ltd.
+ ** Contact: Bea Lam <bea.lam@jollamobile.com>
  **
  ****************************************************************************/
 
-import QtQuick 2.6
+import QtQuick 2.0
 import Sailfish.Silica 1.0
 import Sailfish.Lipstick 1.0
 import com.jolla.lipstick 0.1
-import org.nemomobile.lipstick 0.1
 
 NotificationGroupMember {
     id: root
@@ -20,23 +19,18 @@ NotificationGroupMember {
     property string timestampText
 
     property bool animateContentResizing
-    property bool summaryOnly: bodyText.length === 0
-    property bool showItemCount: notification && notification.itemCount > 1
-    property bool hasExpandableContent: actionRow.visibleCount > 0 && !Lipstick.compositor.lockScreenLayer.lockScreenEventsEnabled // TODO: also check if long body text
-    property bool expanded
+    property bool summaryOnly: notification && notification.maxContentLines == 1
+    property bool showItemCount: notification && notification.itemCount > 1 && summaryOnly
 
     // Only show the first line of the summary, if there is more
     property string _summaryLine: _nthLine(summaryText, 0)
 
-    property real _iconBottom: notificationIcon.loaded ? notificationIcon.height + 2*notificationIcon.y : 0
-    readonly property bool _displayBody: bodyText.length && _summaryLine.length
-    readonly property int _maxBodyLines: expanded ? 25 : 5
+    property real _iconBottom: _displayAvatar ? originAvatar.y + originAvatar.height : 0
+    property bool _displayAvatar: notification && notification.origin.substr(0, 7) == "avatar:"
+    property bool _displayBody: !summaryOnly && bodyText.length && _summaryLine.length
+    property int _maxBodyLines: notification ? Math.min(notification.maxContentLines > 0 ? notification.maxContentLines - 1 : 2, 5) : 1
     property bool hasProgress: notification && notification.hasProgress
     property real progress: notification ? notification.progress : 0
-
-    signal expand
-
-    onHousekeepingChanged: expanded = false
 
     function _nthLine(str, n) {
         var start = 0
@@ -55,38 +49,35 @@ NotificationGroupMember {
         return str.substr(start)
     }
 
-    contentHeight: Math.max(2 * contentColumn.y + contentColumn.height, _iconBottom)
-    draggable: housekeeping && userRemovable
-
-    VerticalAutoScroll.keepVisible: expanded && (actionRow.animating || bodyHeightAnimation.running)
-    VerticalAutoScroll.topMargin: Theme.paddingLarge
-    VerticalAutoScroll.bottomMargin: Theme.paddingLarge
+    contentHeight: Math.max(contentColumn.y + contentColumn.height, _iconBottom) + Theme.paddingMedium
+    deleteIconCenterY: originAvatar.y + originAvatar.height/2
 
     Column {
         id: contentColumn
 
         y: Theme.paddingMedium
         anchors {
-            left: notificationIcon.loaded ? notificationIcon.right : parent.left
-            leftMargin: notificationIcon.loaded ? Theme.paddingMedium : 0
+            left: _displayAvatar ? originAvatar.right : parent.left
+            leftMargin: _displayAvatar ? Theme.paddingMedium : 0
             right: parent.right
         }
 
         Item {
             height: summary.height
             width: parent.width
+
             Label {
                 id: summary
 
                 // If the full width does not fit, truncate so that the timestamp remains visible
-                width: Math.min(implicitWidth, availableWidth)
-                property int availableWidth: parent.width - timestamp.paddedWidth - itemCount.paddedWidth - expandButton.paddedWidth
-
+                width: Math.min(implicitWidth, parent.width - timestamp.paddedWidth - itemCount.paddedWidth)
                 // If there is no summary, fallback to show the first part of the body
                 text: _summaryLine.length ? _summaryLine : _nthLine(bodyText, 0)
                 textFormat: Text.PlainText
                 maximumLineCount: 1
                 truncationMode: TruncationMode.Fade
+                font.pixelSize: Theme.fontSizeMedium
+                color: root.highlighted ? Theme.highlightColor : Theme.primaryColor
 
                 Behavior on width {
                     enabled: root.animateContentResizing
@@ -100,7 +91,7 @@ NotificationGroupMember {
             Label {
                 id: itemCount
 
-                property real paddedWidth: showItemCount ? width + Theme.paddingSmall : 0
+                property real paddedWidth: visible ? width + Theme.paddingSmall : 0
 
                 anchors {
                     baseline: summary.baseline
@@ -110,55 +101,22 @@ NotificationGroupMember {
                 visible: showItemCount
                 text: notification ? '(' + notification.itemCount + ')' : 0
                 font.pixelSize: Theme.fontSizeMedium
+                color: root.highlighted ? Theme.highlightColor : Theme.primaryColor
             }
 
             Label {
                 id: timestamp
 
-                property real paddedWidth: width + Theme.paddingMedium
+                property real paddedWidth: width + Theme.paddingLarge
 
                 anchors {
                     baseline: summary.baseline
                     left: itemCount.visible ? itemCount.right : summary.right
-                    leftMargin: Theme.paddingMedium
+                    leftMargin: Theme.paddingLarge
                 }
-
                 text: root.timestampText
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: root.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
-            }
-
-            IconButton {
-                id: expandButton
-
-                property real paddedWidth: enabled ? icon.width + Theme.paddingLarge : 0
-
-                icon {
-                    transformOrigin: Item.Center
-                    source: "image://theme/icon-s-arrow"
-                    rotation: expanded ? 180 : 0
-                }
-                Behavior on icon.rotation { RotationAnimator { duration: 200 }}
-
-                onClicked: {
-                    if (expanded) {
-                        expanded = false
-                    } else {
-                        expand()
-                    }
-                }
-
-                enabled: !housekeeping && ((!expanded && hasExpandableContent) || (expanded && userRemovable))
-                opacity: enabled ? 1.0 : 0.0
-                Behavior on opacity { FadeAnimator {}}
-                height: Math.max(parent.height, Theme.itemSizeSmall)
-                width: icon.width + 2*Theme.paddingLarge
-                anchors {
-                    verticalCenter: summary.verticalCenter
-                    right: parent.right
-                    // a little over the edge to increase the reactive area
-                    rightMargin: -Theme.paddingLarge
-                }
             }
         }
 
@@ -203,33 +161,22 @@ NotificationGroupMember {
             visible: _displayBody && _maxBodyLines > 0
             text: bodyText
             textFormat: Text.PlainText
-            wrapMode: Text.Wrap
+            wrapMode: Text.WordWrap
             maximumLineCount: _maxBodyLines
             truncationMode: TruncationMode.Elide
             font.pixelSize: Theme.fontSizeExtraSmall
-
-            height: implicitHeight
-            Behavior on height {
-                NumberAnimation {
-                    id: bodyHeightAnimation
-                    easing.type: Easing.InOutQuad
-                    duration: 200
-                }
-            }
-        }
-
-        Item { width: 1; height: Theme.paddingMedium }
-
-        NotificationActionRow {
-            id: actionRow
-            active: expanded
-            onActionInvoked: notification.actionInvoked(actionName)
-            anchors.right: parent.right
+            color: root.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
         }
     }
 
-    NotificationIcon {
-        id: notificationIcon
+    // FIXME: this should use some image/icon type of property, plenty to choose from.
+    Image {
+        id: originAvatar
+
         y: Theme.paddingMedium
+        visible: _displayAvatar
+        source: notification ? notification.origin.substr(7) : ""
+        width: Theme.iconSizeMedium
+        height: width
     }
 }

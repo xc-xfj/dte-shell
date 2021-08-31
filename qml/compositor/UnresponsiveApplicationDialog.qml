@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (c) 2013 - 2019 Jolla Ltd.
-** Copyright (c) 2020 Open Mobile Platform LLC.
+** Copyright (C) 2013 Jolla Ltd.
+** Contact: Vesa Halttunen <vesa.halttunen@jollamobile.com>
 **
 ****************************************************************************/
 
@@ -11,7 +11,7 @@ import com.jolla.lipstick 0.1
 import Sailfish.Silica 1.0
 import Sailfish.Lipstick 1.0
 import "../systemwindow"
-import "../backgrounds"
+import "../compositor"
 
 SystemWindow {
     id: unresponsiveApplicationDialog
@@ -29,8 +29,9 @@ SystemWindow {
             unresponsiveApplicationDialog.pingWindow()
         }
 
-        MenuBackground {
+        BlurredBackground {
             anchors.fill: content
+            backgroundItem: Lipstick.compositor.blurSource
         }
 
         Column {

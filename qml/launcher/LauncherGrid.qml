@@ -1,9 +1,9 @@
-/*
- * Copyright (c) 2013 - 2019 Jolla Ltd.
- * Copyright (c) 2020 Open Mobile Platform LLC.
- *
- * License: Proprietary
- */
+/****************************************************************************
+**
+** Copyright (C) 2013 Jolla Ltd.
+** Contact: Petri M. Gerdt <petri.gerdt@jollamobile.com>
+**
+****************************************************************************/
 
 import QtQuick 2.4
 import org.nemomobile.lipstick 0.1
@@ -11,7 +11,6 @@ import com.jolla.lipstick 0.1
 import Sailfish.Silica 1.0
 import Sailfish.Silica.private 1.0
 import Sailfish.Policy 1.0
-import Sailfish.AccessControl 1.0
 import Sailfish.Lipstick 1.0
 import "../main"
 
@@ -25,7 +24,6 @@ IconGridViewBase {
     property Item openedChildFolder
     property alias reorderItem: gridManager.reorderItem
     property alias gridManager: gridManager
-    property bool canUninstall: AccessControl.hasGroup(AccessControl.RealUid, "sailfish-system")
     signal itemLaunched
 
     function categoryQsTrIds() {
@@ -132,10 +130,6 @@ IconGridViewBase {
         property bool isUpdating: model.object.isUpdating
         property Item updatingItem
 
-        function animateScaleUp() {
-            scaleUpTimer.start()
-        }
-
         width: cellWidth
         height: cellHeight
         manager: gridManager
@@ -148,7 +142,7 @@ IconGridViewBase {
                  (largeScreen && rootFolder ? Theme.paddingLarge*4 : Theme._homePageMargin - Theme.paddingLarge)
 
         onEditModeChanged: {
-            if (editMode && !uninstallButton && canUninstall && policy.value) {
+            if (editMode && !uninstallButton && policy.value) {
                 uninstallButton = uninstallButtonComponent.createObject(contentItem)
             }
         }
@@ -160,8 +154,11 @@ IconGridViewBase {
         }
 
         Timer {
-            id: scaleUpTimer
-            interval: 200
+            interval: 0
+            running: object && !!object.isLaunching && !object.isUpdating
+            onTriggered: {
+                Desktop.instance.switcher.activateWindowFor(object, false)
+            }
         }
 
         Connections {
@@ -192,7 +189,7 @@ IconGridViewBase {
             }
         }
 
-        scale: newFolderIcon.show && manager.folderIndex == index && !isFolder ? 0.5 : (reordering || manager.folderIndex == index || scaleUpTimer.running ? 1.3 : 1)
+        scale: newFolderIcon.show && manager.folderIndex == index && !isFolder ? 0.5 : (reordering || manager.folderIndex == index ? 1.3 : 1)
 
         onClicked: {
             if (dragged) {
@@ -210,18 +207,15 @@ IconGridViewBase {
                     // for interested parties (non-store client) to pick it up
                     object.launchApplication()
                 } else {
-                    // Don't display covers for sandboxed apps when launching them,
-                    // sailjail-homescreen will take care of that
-                    Desktop.instance.switcher.activateWindowFor(object, !object.isLaunching, !object.isSandboxed)
+                    Desktop.instance.switcher.activateWindowFor(object, !object.isLaunching)
                 }
                 gridview.itemLaunched()
             }
         }
 
         onPressAndHold: {
-            if (Lipstick.compositor.launcherLayer.active && !launcherEditMode) {
+            if (Lipstick.compositor.launcherLayer.active) {
                 setEditMode(true)
-                wrapper.startReordering(true)
             }
         }
 

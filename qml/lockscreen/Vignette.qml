@@ -1,10 +1,3 @@
-/*
- * Copyright (c) 2015 - 2020 Jolla Ltd.
- * Copyright (c) 2020 Open Mobile Platform LLC.
- *
- * License: Proprietary
- */
-
 import QtQuick 2.2
 import Sailfish.Silica 1.0
 import org.nemomobile.lipstick 0.1
@@ -30,18 +23,13 @@ ShaderEffect {
     // softness of our vignette, between 0.0 and 1.0
     property real softness: 0.2
     property color color: radius < openRadius / 2 ? "black" : Theme.overlayBackgroundColor
-    Behavior on color {
-        enabled: vignette.animated
-        ColorAnimation {
-            duration: vignette.opened ? 800 : 300
-        }
-    }
+    Behavior on color { enabled: vignette.animated && !vignette.opened; ColorAnimation { duration: 300 } }
 
-    property real strength: radius < openRadius / 2 ? 1.0 : (Theme.colorScheme === Theme.DarkOnLight ? 0.3 : 0.6)
+    property real strength: radius < openRadius / 2 ? 1.0 : (Theme.colorScheme === Theme.DarkOnLight ? 0.3 : 0.8)
     Behavior on strength {
         enabled: vignette.animated
         FadeAnimation {
-            duration: vignette.opened ? 800 : 300
+            duration: 300
             properties: "strength"
         }
     }
@@ -79,3 +67,4 @@ ShaderEffect {
             gl_FragColor = color * vignette;
         }"
 }
+

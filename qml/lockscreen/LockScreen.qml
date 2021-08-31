@@ -1,7 +1,7 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 - 2019 Jolla Ltd.
-** Copyright (C) 2020 Open Mobile Platform LLC.
+** Copyright (C) 2015 Jolla Ltd.
+** Contact: Raine Makelainen <raine.makelainen@jolla.com>
 **
 ****************************************************************************/
 
@@ -32,21 +32,10 @@ ApplicationWindow {
             id: lockScreenPage
             allowedOrientations: Orientation.All
             property bool displayOnFromLowPowerMode
-            readonly property bool interactionExpected: !visible || Lipstick.compositor.lockScreenLayer.dimmer.relativeDim
+            readonly property bool interactionExpected: !visible || wallpaperDimmer.relativeDim
                                                         || lockScreen.pinQueryPannable || Lipstick.compositor.topMenuLayer.exposed
                                                         || Lipstick.compositor.launcherLayer.exposed
-                                                        || Lipstick.compositor.notificationOverviewLayer.previewExpanded
             property bool displayIsOn: true
-
-            property bool vignetteActive
-
-            palette.colorScheme: lockScreen.lowPowerMode ? Theme.LightOnDark : undefined
-
-            onVignetteActiveChanged: {
-                if (vignetteActive) {
-                    lockItem.hintEdges()
-                }
-            }
 
             onInteractionExpectedChanged: lipstickSettings.setInteractionExpected(interactionExpected)
 
@@ -62,8 +51,41 @@ ApplicationWindow {
                 id: startupWizardExpiry
 
                 running: Desktop.startupWizardRunning
-
                 interval: 30000
+            }
+
+            WallpaperDimmer {
+                id: wallpaperDimmer
+
+                anchors.fill: parent
+
+                offset: Math.abs(deviceLockContainer.offset)
+                relativeDim: deviceLockContainer.exposed
+            }
+
+            Vignette {
+                id: vignette
+
+                active: false
+                anchors.fill: lockScreenPage
+                openRadius: 0.75
+                softness: 0.7
+                animated: lipstickSettings.blankingPolicy == "default"
+
+                onActiveChanged: {
+                    if (active) {
+                        lockItem.hintEdges()
+                    }
+                }
+
+                onOpenedChanged: {
+                    if (opened) {
+                        lockScreenPage.displayOnFromLowPowerMode = false
+                        if (Lipstick.compositor.dialogBlurSource) {
+                            Lipstick.compositor.dialogBlurSource.update()
+                        }
+                    }
+                }
             }
 
             Connections {
@@ -80,17 +102,17 @@ ApplicationWindow {
                 onDisplayOn: {
                     displayIsOn = true
                     if (!systemStarted.value) {
-                        return
+                        return;
                     }
 
-                    lockScreenPage.vignetteActive = true
+                    vignette.active = true
                     lockScreen.displayOn = true
                 }
 
                 // Updates enabled
                 onDisplayAboutToBeOn: {
                     if (!systemStarted.value) {
-                        return
+                        return;
                     }
 
                     lockScreenPage.displayOnFromLowPowerMode = lockScreen.lowPowerMode
@@ -159,32 +181,14 @@ ApplicationWindow {
 
             StatusBar {
                 id: statusBar
-                y: -lockScreen.currentItem.statusOffset
+                y: lockItem.contentY
                 lockscreenMode: true
                 updatesEnabled: lockScreen.locked
-                color: (lockScreen.pinQueryPannable && lockScreen.pinQueryPannable.isCurrentItem)
-                       ? (lockScreen.pinQueryPannable.colorScheme == Theme.DarkOnLight ? Theme.darkPrimaryColor
-                                                                                       : Theme.lightPrimaryColor)
-                       : (deviceLockContainer.isCurrentItem && deviceLockContainer.emergency)
-                         ? Theme.lightPrimaryColor
-                         : lockScreen.textColor
-                opacity: systemStarted.value
-                            && Lipstick.compositor.lockScreenLayer.vignette.opened
-                            && Desktop.deviceLockState <= DeviceLock.Locked
+                color: lockScreen.textColor
+                opacity: systemStarted.value && vignette.opened && Desktop.deviceLockState <= DeviceLock.Locked
                          ? (deviceLockContainer.isCurrentItem ? deviceLockItem.opacity : lockItem.clock.transitionOpacity)
                          : 0.0
                 z: 1
-
-                shadowVisible: !(lockScreen.pinQueryPannable && lockScreen.pinQueryPannable.isCurrentItem)
-                            && !(deviceLockContainer.isCurrentItem && deviceLockContainer.emergency)
-
-                palette.colorScheme: {
-                    if (deviceLockContainer.isCurrentItem && deviceLockContainer.emergency) {
-                        return Theme.LightOnDark
-                    } else {
-                        return undefined
-                    }
-                }
             }
 
             PageBusyIndicator {
@@ -197,58 +201,30 @@ ApplicationWindow {
                             lockScreen.nextPannableItem(false, false)
                         }
 
-                        lockScreenPage.vignetteActive = true
+                        vignette.active = true
                         lockScreen.displayOn = true
                     }
                 }
             }
 
-            StateGroup {
-                states: State {
-                    when: { true }
-
-                    PropertyChanges {
-                        target: Lipstick.compositor.lockScreenLayer
-
-                        // Show notifications only on lock container given that lockscreen is not moving
-                        // and device lock is unlocked or locked, so no notifications
-                        // in ManagerLockout, TemporaryLockout, PermanentLockout, or Undefined
-                        showNotifications: (Desktop.deviceLockState == DeviceLock.Unlocked || Desktop.deviceLockState == DeviceLock.Locked)
-                                    && (Lipstick.compositor.lockScreenLayer.opaque && systemStarted.value)
-                                    && ((Lipstick.compositor.lockScreenLayer.vignette.opened || lockScreenPage.displayOnFromLowPowerMode)
-                                        && lockContainer.isCurrentItem && !lockScreen.moving
-                                            || lockScreen.lowPowerMode)
-                        pendingPinQuery: lockScreen.needPinQuery
-
-                        dimmer {
-                            relativeDim: deviceLockContainer.exposed || eventsContainer.exposed
-                            offset: {
-                                if (deviceLockContainer.exposed && eventsContainer.exposed) {
-                                    return 0.0
-                                } else if (deviceLockContainer.exposed) {
-                                    return Math.abs(deviceLockContainer.offset)
-                                } else if (eventsContainer.exposed) {
-                                    return Math.abs(eventsContainer.offset)
-                                }
-                                return 0.0
-                            }
-                        }
-
-                        vignette {
-                            active: lockScreenPage.vignetteActive
-                            onOpenedChanged: {
-                                if (Lipstick.compositor.lockScreenLayer.vignette.opened) {
-                                    lockScreenPage.displayOnFromLowPowerMode = false
-                                    if (Lipstick.compositor.dialogBlurSource) {
-                                        Lipstick.compositor.dialogBlurSource.update()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            Binding {
+                target: Lipstick.compositor.lockScreenLayer
+                property: "showNotifications"
+                // Show notifications only on lock container given that lockscreen is not moving
+                // and device lock is unlocked or locked, so no notifications
+                // in ManagerLockout, TemporaryLockout, PermanentLockout, or Undefined
+                value: (Desktop.deviceLockState == DeviceLock.Unlocked || Desktop.deviceLockState == DeviceLock.Locked)
+                        && (Lipstick.compositor.lockScreenLayer.opaque && systemStarted.value)
+                        && ((vignette.opened || lockScreenPage.displayOnFromLowPowerMode)
+                           && lockContainer.isCurrentItem && !lockScreen.moving
+                           || lockScreen.lowPowerMode)
             }
 
+            Binding {
+                target: Lipstick.compositor.lockScreenLayer
+                property: "pendingPinQuery"
+                value: lockScreen.needPinQuery
+            }
 
             Connections {
                 target: PinQueryAgent
@@ -311,7 +287,7 @@ ApplicationWindow {
                         return
                     } else if (lockedOut
                                || Lipstick.compositor.appLayer.window
-                               || Lipstick.compositor.homeLayer.currentItem.maximized) {
+                                || Lipstick.compositor.homeLayer.currentItem.maximized) {
                         lockScreen.nextPannableItem(false, false)
                         lockScreen.open(false)
 
@@ -319,7 +295,7 @@ ApplicationWindow {
                             lipstickSettings.lockScreen(true)
                         }
                     } else {
-                        lockScreen.activate(lockScreenPage.vignetteActive)
+                        lockScreen.activate(vignette.active)
                         lipstickSettings.lockScreen(true)
                     }
 
@@ -336,7 +312,7 @@ ApplicationWindow {
                         var days = Math.floor(time / oneday)
 
                         //% "Security code needs to be updated in %n day(s)"
-                        expirationNotification.body = qsTrId("lipstick-jolla-home-la-devicelock_expiring_in_days", days)
+                        expirationNotification.previewBody = qsTrId("lipstick-jolla-home-la-devicelock_expiring_in_days", days)
 
                         expirationNotification.timestamp = expirationDate
                         expirationNotification.expireTimeout = Math.min(time, oneday)
@@ -359,14 +335,12 @@ ApplicationWindow {
                 //% "Security"
                 appName: qsTrId("lipstick-jolla-home-he-devicelock_security")
                 //% "Device lock"
-                summary: qsTrId("lipstick-jolla-home-he-devicelock")
-                appIcon: "icon-lock-settings"
+                previewSummary: qsTrId("lipstick-jolla-home-he-devicelock")
+                summary: previewSummary
+                body: previewBody
                 replacesId: Desktop.settings.security_code_notification_id
                 remoteActions: [ {
                     "name": "default",
-                    //: Update the device lock code now (instead of waiting for it to expire)
-                    //% "Update now"
-                    "displayName": qsTrId("lipstick-jolla-home-la-update_device_code_now"),
                     "service": "com.jolla.settings",
                     "path": "/com/jolla/settings/ui",
                     "iface": "com.jolla.settings.ui",
@@ -439,7 +413,7 @@ ApplicationWindow {
                     // we will return to low power mode
                     showPinQuery = showPin
                     createPinQueryIfNeeded()
-                    lockScreenPage.vignetteActive = !lockScreen.lowPowerMode
+                    vignette.active = !lockScreen.lowPowerMode
                 }
 
                 function activate(vignetteActive) {
@@ -455,7 +429,7 @@ ApplicationWindow {
                         }
 
                     }
-                    lockScreenPage.vignetteActive = vignetteActive
+                    vignette.active = vignetteActive
                 }
 
                 function unlock(playTone) {
@@ -473,12 +447,17 @@ ApplicationWindow {
                         lockScreen.pinQueryPannable.deviceWasLocked = false
                     }
 
-                    if ((lockContainer.x > 0 || overshoot > 0) && !Lipstick.compositor.lockScreenLayer.lockScreenEvents
+                    if ((lockContainer.x > 0 || overshoot > 0)
                             && (Lipstick.compositor.notificationOverviewLayer.hasNotifications || Desktop.settings.left_peek_to_events)
                             && Lipstick.compositor.systemInitComplete) {
                         lockItem.reset()
                         deviceLockContainer.opacity = 0.0
-                        Lipstick.compositor.goToEvents()
+                        if (Lipstick.compositor.notificationOverviewLayer.hasNotifications && overshoot > 0) {
+                            Lipstick.compositor.lockScreenLayer.notificationAnimation = "animated"
+                        } else {
+                            Lipstick.compositor.lockScreenLayer.notificationAnimation = "immediate"
+                            Lipstick.compositor.goToEvents()
+                        }
                     } else {
                         lockItem.reset()
                         Lipstick.compositor.goToSwitcher(false)
@@ -522,7 +501,7 @@ ApplicationWindow {
 
                 onLowPowerModeChanged: {
                     if (lowPowerMode) {
-                        lockScreenPage.vignetteActive = false
+                        vignette.active = false
                     }
                 }
 
@@ -556,7 +535,6 @@ ApplicationWindow {
                 dragArea.enabled: peekFilter.enabled
 
                 pannableItems: [
-
                     PannableItem {
                         id: lockContainer
 
@@ -568,13 +546,11 @@ ApplicationWindow {
                         readonly property bool atLeft: interactive && x <= 0
                         readonly property bool atRight: interactive && x >= 0
 
-                        property real statusOffset: -lockItem.contentY
-
                         objectName: "lockContainer"
 
                         width: lockScreen.width
                         height: lockScreen.height
-                        leftItem: Lipstick.compositor.lockScreenLayer.lockScreenEventsEnabled ? eventsContainer : nextItem
+                        leftItem: nextItem
                         rightItem: nextItem
 
                         onVisibleChanged: {
@@ -599,7 +575,7 @@ ApplicationWindow {
                             statusBarHeight: statusBar.height
 
                             visible: systemStarted.value
-                            allowAnimations: Lipstick.compositor.lockScreenLayer.vignette.opened
+                            allowAnimations: vignette.opened
                             iconSuffix: lockScreen.iconSuffix
                             clock.followPeekPosition: !parent.rightItem
 
@@ -610,31 +586,15 @@ ApplicationWindow {
                     PannableItem {
                         id: deviceLockContainer
 
-                        property alias emergency: deviceLockItem.emergency
-                        property real statusOffset: 0
+                        function pinOrLock() {
+                            return lockScreen.needPinQuery ? lockScreen.pinQueryPannable : lockContainer
+                        }
 
                         width: lockScreen.width
                         height: lockScreen.height
 
-                        leftItem: {
-                            if (!lockContainer.atLeft && lockScreen.needPinQuery) {
-                                return lockScreen.pinQueryPannable
-                            } else {
-                                return lockContainer
-                            }
-                        }
-
-                        rightItem: {
-                            if (!lockContainer.atRight && lockScreen.needPinQuery) {
-                                return lockScreen.pinQueryPannable
-                            } else {
-                                if (Lipstick.compositor.lockScreenLayer.lockScreenEventsEnabled) {
-                                    return eventsContainer
-                                } else {
-                                    return lockContainer
-                                }
-                            }
-                        }
+                        leftItem: lockContainer.atLeft ? lockContainer : pinOrLock()
+                        rightItem: lockContainer.atRight ? lockContainer : pinOrLock()
 
                         objectName: "deviceLock"
                         visible: false
@@ -643,12 +603,19 @@ ApplicationWindow {
                             Lipstick.compositor.lockScreenLayer.showingLockCodeEntry = isCurrentItem
                         }
 
+                        // Fadeout device lock faster when unlocking to events view so that device lock is not visible
+                        // when NotificationLayer animates visible.
+                        Behavior on opacity {
+                            enabled: lockContainer.atRight && !lockScreen.pinQueryPannable
+                            FadeAnimation {}
+                        }
+
                         DeviceLockPrompt {
                             id: deviceLockItem
 
                             width: parent.width
                             height: parent.height
-                            opacity: Lipstick.compositor.lockScreenLayer.vignette.opened && item
+                            opacity: vignette.opened && item
                                         && item.authenticationInput.status !== AuthenticationInput.Idle
                                     ? 1
                                     : 0
@@ -662,23 +629,6 @@ ApplicationWindow {
                                 FadeAnimation {}
                             }
                         }
-                    },
-
-                    PannableItem {
-                        id: eventsContainer
-
-                        property real statusOffset: Lipstick.compositor.eventsLayer.statusOffset
-
-                        objectName: "eventsContainer"
-
-                        leftItem: lockContainer.nextItem
-                        rightItem: lockContainer
-                        visible: false
-
-                        width: lockScreen.width
-                        height: lockScreen.height
-                        Component.onCompleted: Lipstick.compositor.lockScreenLayer.eventsContainer = eventsContainer
-
                     }
                 ]
             }
@@ -691,11 +641,6 @@ ApplicationWindow {
 
                     property Item previousPannableItem: deviceLockItem.locked ? deviceLockContainer : lockContainer
                     property bool deviceWasLocked
-                    // emergency always dark scheme, otherwise inverted
-                    property int colorScheme: pinQuery.emergency
-                                              ? Theme.LightOnDark
-                                              : (Theme.colorScheme == Theme.LightOnDark ? Theme.DarkOnLight
-                                                                                        : Theme.LightOnDark)
 
                     function reset() {
                         pinQuery.reset()
